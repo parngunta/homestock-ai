@@ -202,19 +202,19 @@ export default function NewAppLayout() {
         </nav>
 
         <div className="p-4 border-t border-border/40">
-          <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-3xl p-4 text-white shadow-glow">
+          <div className="bg-secondary rounded-3xl p-4 text-secondary-foreground shadow-soft">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-purple-700" />
               </div>
               <div>
                 <p className="font-bold text-sm">AI Assistant</p>
-                <p className="text-white/80 text-xs">Ask anything about your home</p>
+                <p className="text-muted-foreground text-xs">Ask anything about your home</p>
               </div>
             </div>
             <button
               onClick={() => navigate('/ai-chat')}
-              className="w-full py-2.5 rounded-xl bg-white/20 hover:bg-white/30 transition-colors text-sm font-semibold"
+              className="w-full py-2.5 rounded-xl bg-white hover:bg-white/80 transition-colors text-sm font-semibold text-foreground shadow-soft border border-border/40"
             >
               Start Chat
             </button>

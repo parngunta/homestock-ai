@@ -25,6 +25,8 @@ import {
   Mic,
   Receipt,
   X,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 
 const mainNavItems = [
@@ -49,6 +51,11 @@ export default function NewAppLayout() {
   const [isDark, setIsDark] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const stored = window.localStorage.getItem('homestock-desktop-sidebar');
+    return stored === null ? true : stored === 'true';
+  });
   const menuRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuthStore();
@@ -97,16 +104,42 @@ export default function NewAppLayout() {
     };
   }, [menuOpen, searchOpen]);
 
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'homestock-desktop-sidebar' && e.newValue !== null) {
+        setDesktopSidebarOpen(e.newValue === 'true');
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const toggleDesktopSidebar = () => {
+    setDesktopSidebarOpen((open) => {
+      const next = !open;
+      window.localStorage.setItem('homestock-desktop-sidebar', String(next));
+      return next;
+    });
+  };
+
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
 
+  const sidebarWidthClass = desktopSidebarOpen ? 'w-64 xl:w-72' : 'w-0';
+  const sidebarTranslateClass = desktopSidebarOpen ? 'translate-x-0' : '-translate-x-full';
+  const mainLeftClass = desktopSidebarOpen ? 'lg:pl-64 xl:pl-72' : 'lg:pl-0';
+  const topBarLeftClass = desktopSidebarOpen ? 'left-64 xl:left-72' : 'left-0';
+  const sidebarWidth = desktopSidebarOpen ? '18rem' : '0px';
+
   return (
     <div className="min-h-screen bg-background text-foreground safe-bottom tap-highlight-transparent">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 xl:w-72 flex-col bg-card border-r border-border/40 z-40">
-        <div className="p-6">
+      <aside
+        className={`hidden lg:flex fixed left-0 top-0 bottom-0 ${sidebarWidthClass} flex-col bg-card border-r border-border/40 z-40 overflow-x-hidden transition-all duration-300 ease-out ${sidebarTranslateClass}`}
+      >
+        <div className="p-6 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl gradient-green flex items-center justify-center shadow-glow">
               <Home className="w-5 h-5 text-white" />
@@ -267,8 +300,7 @@ export default function NewAppLayout() {
       </header>
 
       {/* Desktop Top Bar */}
-      <div className="hidden lg:flex fixed top-0 left-64 xl:left-72 right-0 h-20 items-center justify-between px-8 z-30 bg-background/80 backdrop-blur-xl border-b border-border/40"
-      >
+      <div className={`hidden lg:flex fixed top-0 ${topBarLeftClass} right-0 h-20 items-center justify-between px-8 z-30 bg-background/80 backdrop-blur-xl border-b border-border/40 transition-all duration-300 ease-out`}>
         <div className="flex items-center gap-3">
           {households.length > 0 && (
             <div className="relative">
@@ -333,8 +365,23 @@ export default function NewAppLayout() {
         </div>
       </div>
 
+      {/* Sidebar toggle rail */}
+      <div
+        className="hidden lg:flex fixed top-0 bottom-0 z-50 transition-all duration-300 ease-out"
+        style={{ left: sidebarWidth, transform: desktopSidebarOpen ? 'translateX(-100%)' : 'translateX(0)' }}
+      >
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={toggleDesktopSidebar}
+          className="w-5 h-full flex items-center justify-center bg-card/80 hover:bg-card border-r border-border/40 text-muted-foreground hover:text-foreground backdrop-blur-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={desktopSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+        >
+          {desktopSidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeftOpen className="w-4 h-4" />}
+        </motion.button>
+      </div>
+
       {/* Main Content */}
-      <main className="lg:pl-64 xl:pl-72 lg:pt-20 pb-24 lg:pb-8 min-h-screen">
+      <main className={`${mainLeftClass} lg:pt-20 pb-24 lg:pb-8 min-h-screen transition-all duration-300 ease-out`}>
         <Outlet />
       </main>
 

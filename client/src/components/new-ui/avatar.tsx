@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 export interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
   src?: string;
   name: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }
 
 const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
@@ -19,18 +19,19 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     const sizes = {
       sm: "w-8 h-8 text-xs",
       md: "w-10 h-10 text-sm",
-      lg: "w-12 h-12 text-base",
+      lg: "w-14 h-14 text-base",
+      xl: "w-20 h-20 text-xl",
     };
 
     const colors = [
-      "bg-red-100 text-red-600",
-      "bg-blue-100 text-blue-600",
-      "bg-green-100 text-green-600",
-      "bg-yellow-100 text-yellow-600",
-      "bg-purple-100 text-purple-600",
-      "bg-pink-100 text-pink-600",
-      "bg-orange-100 text-orange-600",
-      "bg-teal-100 text-teal-600",
+      "bg-emerald-100 text-emerald-700",
+      "bg-sky-100 text-sky-700",
+      "bg-amber-100 text-amber-700",
+      "bg-rose-100 text-rose-700",
+      "bg-violet-100 text-violet-700",
+      "bg-orange-100 text-orange-700",
+      "bg-cyan-100 text-cyan-700",
+      "bg-lime-100 text-lime-700",
     ];
 
     const colorIndex = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
@@ -40,7 +41,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
       <div
         ref={ref}
         className={cn(
-          "relative inline-flex items-center justify-center rounded-full font-semibold overflow-hidden flex-shrink-0",
+          "relative inline-flex items-center justify-center rounded-2xl font-semibold overflow-hidden flex-shrink-0",
           sizes[size],
           colorClass,
           className

@@ -4,56 +4,56 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 240 10% 12%;
+    --background: 48 20% 97%;
+    --foreground: 220 14% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 12%;
+    --card-foreground: 220 14% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 12%;
-    --primary: 210 100% 50%;
+    --popover-foreground: 220 14% 10%;
+    --primary: 142 71% 45%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 95%;
-    --secondary-foreground: 240 10% 12%;
-    --muted: 240 5% 94%;
-    --muted-foreground: 240 4% 46%;
-    --accent: 210 100% 50%;
+    --secondary: 48 18% 94%;
+    --secondary-foreground: 220 14% 10%;
+    --muted: 48 12% 92%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 72% 29%;
+    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 210 100% 50%;
-    --radius: 0.875rem;
+    --border: 48 14% 88%;
+    --input: 48 14% 88%;
+    --ring: 142 71% 45%;
+    --radius: 1.25rem;
   }
 
   .dark {
-    --background: 240 6% 6%;
-    --foreground: 0 0% 95%;
-    --card: 240 6% 8%;
-    --card-foreground: 0 0% 95%;
-    --popover: 240 6% 10%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 210 100% 55%;
+    --background: 220 14% 6%;
+    --foreground: 48 20% 96%;
+    --card: 220 14% 10%;
+    --card-foreground: 48 20% 96%;
+    --popover: 220 14% 12%;
+    --popover-foreground: 48 20% 96%;
+    --primary: 142 71% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 5% 16%;
-    --secondary-foreground: 0 0% 95%;
-    --muted: 240 5% 18%;
-    --muted-foreground: 240 5% 55%;
-    --accent: 210 100% 55%;
+    --secondary: 220 10% 16%;
+    --secondary-foreground: 48 20% 96%;
+    --muted: 220 10% 18%;
+    --muted-foreground: 220 9% 55%;
+    --accent: 38 90% 55%;
     --accent-foreground: 0 0% 100%;
     --warning: 38 90% 55%;
     --warning-foreground: 0 0% 100%;
     --destructive: 0 70% 55%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 60% 40%;
+    --success: 142 60% 42%;
     --success-foreground: 0 0% 100%;
-    --border: 240 5% 18%;
-    --input: 240 5% 20%;
-    --ring: 210 100% 55%;
+    --border: 220 10% 18%;
+    --input: 220 10% 20%;
+    --ring: 142 71% 50%;
   }
 }
 
@@ -65,11 +65,12 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: 14px;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", "Roboto", system-ui, sans-serif;
+    font-family: "Manrope", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, system-ui, sans-serif;
   }
 }
 
@@ -97,33 +98,24 @@
 }
 
 @layer components {
-  .soft-card {
-    @apply bg-card rounded-xl border border-border/50;
+  .warm-card {
+    @apply bg-card rounded-3xl shadow-soft border border-border/40;
   }
 
-  .flat-primary {
-    @apply bg-primary text-primary-foreground;
+  .gradient-green {
+    background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
   }
-}
 
-/* Animation utilities */
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+  .gradient-orange {
+    background: linear-gradient(135deg, #F59E0B 0%, #F97316 100%);
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
+  .gradient-red {
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
   }
-  to {
-    transform: translateY(0);
+
+  .gradient-warm {
+    background: linear-gradient(135deg, #FAFAF7 0%, #F5F5F0 100%);
   }
 }
 
@@ -136,18 +128,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-
-.animate-fade-in-up {
-  animation: fadeInUp 0.25s ease-out forwards;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.25s ease-out forwards;
-}
-
-/* Stagger children */
-.stagger-1 { animation-delay: 0.04s; }
-.stagger-2 { animation-delay: 0.08s; }
-.stagger-3 { animation-delay: 0.12s; }
-.stagger-4 { animation-delay: 0.16s; }
-.stagger-5 { animation-delay: 0.2s; }

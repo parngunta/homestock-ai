@@ -1,12 +1,14 @@
-import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useHouseholdStore } from '@/stores/household-store';
 import { useInventoryStore } from '@/stores/inventory-store';
 import { useShoppingListStore } from '@/stores/shopping-list-store';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/new-ui/input';
-import { Card } from '@/components/new-ui/card';
+import { Card, CardContent } from '@/components/new-ui/card';
+import { EmptyState } from '@/components/new-ui/empty-state';
 import {
   ArrowLeft,
   Camera,
@@ -16,17 +18,41 @@ import {
   ShoppingCart,
   Plus,
   Check,
+  Sparkles,
+  Home,
 } from 'lucide-react';
 import { CATEGORY_LABELS, UNIT_LABELS } from 'shared/src/constants';
 import type { VoiceResult } from '@/types';
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 320, damping: 28 } },
+};
+
+const modes: { id: 'manual' | 'receipt' | 'barcode' | 'voice' | 'shopping'; label: string; icon: typeof Keyboard; color: string }[] = [
+  { id: 'manual', label: 'Manual', icon: Keyboard, color: 'bg-slate-500' },
+  { id: 'shopping', label: 'Shopping', icon: ShoppingCart, color: 'bg-blue-500' },
+  { id: 'receipt', label: 'Receipt', icon: Camera, color: 'bg-violet-500' },
+  { id: 'barcode', label: 'Barcode', icon: ScanBarcode, color: 'bg-amber-500' },
+  { id: 'voice', label: 'Voice', icon: Mic, color: 'bg-rose-500' },
+];
+
+
+
 export default function AddItemPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentHousehold } = useHouseholdStore();
   const { createItem } = useInventoryStore();
   const { createItem: createShoppingItem } = useShoppingListStore();
 
-  const [mode, setMode] = useState<'receipt' | 'barcode' | 'voice' | 'manual' | 'shopping'>('manual');
+  const initialMode = (searchParams.get('mode') as any) || 'manual';
+  const [mode, setMode] = useState<'receipt' | 'barcode' | 'voice' | 'manual' | 'shopping'>(initialMode);
   const [isProcessing, setIsProcessing] = useState(false);
   const [voiceResult, setVoiceResult] = useState<VoiceResult | null>(null);
   const [barcode, setBarcode] = useState('');
@@ -36,26 +62,38 @@ export default function AddItemPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [manualItem, setManualItem] = useState({
-    name: '',
+    name: searchParams.get('name') || '',
     quantity: 1,
     unit: 'PIECE' as const,
     category: 'OTHER' as const,
     minimumThreshold: 0,
+    expiryDate: '',
     addToShoppingList: false,
   });
 
+  useEffect(() => {
+    const m = searchParams.get('mode') as typeof mode | null;
+    if (m && ['receipt', 'barcode', 'voice', 'shopping', 'manual'].includes(m)) setMode(m);
+  }, [searchParams.get('mode')]);
+
   if (!currentHousehold) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
-        <h2 className="text-xl font-semibold mb-2">No household selected</h2>
-        <p className="text-muted-foreground">Create a household first to add items.</p>
-      </div>
+      <EmptyState
+        icon={Home}
+        title="No household selected"
+        description="Create a household first to add items."
+      >
+        <Button onClick={() => navigate('/household')} className="rounded-full px-6">Create Household</Button>
+      </EmptyState>
     );
   }
 
   const handleManualAdd = async () => {
     if (!manualItem.name) return;
-    await createItem(currentHousehold.id, manualItem);
+    const payload: any = { ...manualItem };
+    if (!payload.expiryDate) delete payload.expiryDate;
+    delete payload.addToShoppingList;
+    await createItem(currentHousehold.id, payload);
     if (manualItem.addToShoppingList) {
       await createShoppingItem(currentHousehold.id, {
         name: manualItem.name,
@@ -150,304 +188,399 @@ export default function AddItemPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-30 safe-top bg-background border-b border-border">
-        <div className="flex items-center gap-3 px-5 h-14">
-          <button onClick={() => navigate('/')} className="p-2 -ml-2 rounded-full hover:bg-secondary">
+    <motion.div
+      className="min-h-screen bg-background"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <header className="sticky top-0 z-30 safe-top bg-background/80 backdrop-blur-xl border-b border-border/40">
+        <div className="flex items-center gap-3 px-5 h-16">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => navigate('/')}
+            className="p-2 -ml-2 rounded-2xl hover:bg-secondary"
+          >
             <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-lg font-semibold">Add Item</h1>
+          </motion.button>
+          <h1 className="text-xl font-bold">Add Item</h1>
         </div>
       </header>
 
       <div className="px-5 pt-5 pb-28 space-y-6">
-        {/* Mode selector */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          <ModeButton icon={Keyboard} label="Manual" active={mode === 'manual'} onClick={() => setMode('manual')} />
-          <ModeButton icon={ShoppingCart} label="Shopping" active={mode === 'shopping'} onClick={() => setMode('shopping')} />
-          <ModeButton icon={Camera} label="Receipt" active={mode === 'receipt'} onClick={() => setMode('receipt')} />
-          <ModeButton icon={ScanBarcode} label="Barcode" active={mode === 'barcode'} onClick={() => setMode('barcode')} />
-          <ModeButton icon={Mic} label="Voice" active={mode === 'voice'} onClick={() => setMode('voice')} />
-        </div>
-
-        {mode === 'manual' && (
-          <div className="space-y-4 animate-fade-in-up">
-            <Card className="p-4 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Item name</label>
-                <Input
-                  placeholder="e.g. Toilet Paper"
-                  value={manualItem.name}
-                  onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Quantity</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={manualItem.quantity}
-                    onChange={(e) => setManualItem({ ...manualItem, quantity: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Unit</label>
-                  <select
-                    value={manualItem.unit}
-                    onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value as any })}
-                    className="w-full h-12 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {Object.entries(UNIT_LABELS).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Category</label>
-                  <select
-                    value={manualItem.category}
-                    onChange={(e) => setManualItem({ ...manualItem, category: e.target.value as any })}
-                    className="w-full h-12 rounded-xl border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                  >
-                    {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Low stock alert</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    placeholder="0"
-                    value={manualItem.minimumThreshold}
-                    onChange={(e) => setManualItem({ ...manualItem, minimumThreshold: Number(e.target.value) })}
-                  />
-                </div>
-              </div>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={manualItem.addToShoppingList}
-                  onChange={(e) => setManualItem({ ...manualItem, addToShoppingList: e.target.checked })}
-                  className="rounded border-input"
-                />
-                Also add to shopping list
-              </label>
-
-              <Button onClick={handleManualAdd} className="w-full rounded-full">
-                <Plus className="w-4 h-4 mr-2" /> Add to Inventory
-              </Button>
-            </Card>
-          </div>
-        )}
-
-        {mode === 'receipt' && (
-          <div className="space-y-4 animate-fade-in-up">
-            <Card className="p-8 text-center">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])}
-              />
-              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-4">
-                <Camera className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="font-medium mb-1">Scan a receipt</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Take a photo and we’ll extract the items automatically.
-              </p>
-              <Button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isProcessing}
-                className="rounded-full"
+        <motion.div variants={itemVariants} className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {modes.map((m) => {
+            const Icon = m.icon;
+            const active = mode.toLowerCase() === m.id;
+            return (
+              <motion.button
+                key={m.id}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setMode(m.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap transition-all ${
+                  active
+                    ? 'bg-primary text-primary-foreground shadow-soft'
+                    : 'bg-card border border-border/40 text-muted-foreground hover:text-foreground'
+                }`}
               >
-                {isProcessing ? 'Scanning...' : 'Upload Receipt'}
-              </Button>
-            </Card>
+                <Icon className="w-4 h-4" /> {m.label}
+              </motion.button>
+            );
+          })}
+        </motion.div>
 
-            {parsedReceiptItems.length > 0 && (
+        <AnimatePresence mode="wait">
+          {mode === 'manual' && (
+            <motion.div
+              key="manual"
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
               <Card className="overflow-hidden">
-                <div className="p-4 border-b border-border/40 flex items-center justify-between">
-                  <p className="font-semibold">Found {parsedReceiptItems.length} items</p>
-                  <Button size="sm" onClick={importReceiptItems} className="rounded-full">
-                    Import {selectedItems.size}
-                  </Button>
-                </div>
-                <div className="divide-y divide-border/40">
-                  {parsedReceiptItems.map((item, i) => (
-                    <button
-                      key={i}
-                      onClick={() => toggleItem(i)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                        selectedItems.has(i) ? 'bg-primary/5' : ''
+                <CardContent className="p-5 space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-base font-semibold">Item name</label>
+                    <Input
+                      placeholder="e.g. Toilet Paper"
+                      value={manualItem.name}
+                      onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+                      className="h-14 rounded-2xl text-base"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Quantity</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={manualItem.quantity}
+                        onChange={(e) => setManualItem({ ...manualItem, quantity: Number(e.target.value) })}
+                        className="h-14 rounded-2xl text-base"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Unit</label>
+                      <select
+                        value={manualItem.unit}
+                        onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value as any })}
+                        className="w-full h-14 rounded-2xl border border-input bg-background px-4 text-base focus:outline-none focus:ring-2 focus:ring-ring appearance-none"
+                      >
+                        {Object.entries(UNIT_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Category</label>
+                      <select
+                        value={manualItem.category}
+                        onChange={(e) => setManualItem({ ...manualItem, category: e.target.value as any })}
+                        className="w-full h-14 rounded-2xl border border-input bg-background px-4 text-base focus:outline-none focus:ring-2 focus:ring-ring appearance-none"
+                      >
+                        {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Expiry date</label>
+                      <Input
+                        type="date"
+                        value={manualItem.expiryDate}
+                        onChange={(e) => setManualItem({ ...manualItem, expiryDate: e.target.value })}
+                        className="h-14 rounded-2xl text-base"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Low stock alert</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={manualItem.minimumThreshold}
+                        onChange={(e) => setManualItem({ ...manualItem, minimumThreshold: Number(e.target.value) })}
+                        className="h-14 rounded-2xl text-base"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-3 text-base">
+                    <div
+                      onClick={() => setManualItem((s) => ({ ...s, addToShoppingList: !s.addToShoppingList }))}
+                      className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors cursor-pointer ${
+                        manualItem.addToShoppingList ? 'bg-primary border-primary' : 'border-border'
                       }`}
                     >
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        selectedItems.has(i) ? 'bg-primary border-primary' : 'border-border'
-                      }`}>
-                        {selectedItems.has(i) && <Check className="w-3.5 h-3.5 text-white" />}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.name}</p>
-                        <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {mode === 'barcode' && (
-          <div className="space-y-4 animate-fade-in-up">
-            <Card className="p-5 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-2">
-                <ScanBarcode className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-center font-medium mb-1">Scan or type a barcode</p>
-              <Input
-                placeholder="Enter barcode number"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-              />
-              <Button onClick={handleBarcode} disabled={isProcessing} className="w-full rounded-full">
-                {isProcessing ? 'Looking up...' : 'Look Up Product'}
-              </Button>
-
-              {barcodeProduct && (
-                <div className="mt-4 p-4 rounded-xl bg-secondary/50 space-y-3">
-                  <p className="font-semibold">{barcodeProduct.name}</p>
-                  {barcodeProduct.brand && <p className="text-sm text-muted-foreground">{barcodeProduct.brand}</p>}
-                  <Button
-                    onClick={async () => {
-                      await createItem(currentHousehold.id, {
-                        name: barcodeProduct.name,
-                        brand: barcodeProduct.brand,
-                        category: barcodeProduct.category || 'OTHER',
-                        unit: barcodeProduct.unit || 'PIECE',
-                        quantity: 1,
-                      });
-                      navigate('/');
-                    }}
-                    className="w-full rounded-full"
-                  >
-                    Add to Inventory
-                  </Button>
-                </div>
-              )}
-
-              {barcodeProduct === null && barcode && !isProcessing && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Product not found. Try adding it manually.
-                </p>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {mode === 'voice' && (
-          <div className="space-y-4 animate-fade-in-up">
-            <Card className="p-5 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-secondary flex items-center justify-center mx-auto mb-2">
-                <Mic className="w-8 h-8 text-muted-foreground" />
-              </div>
-              <p className="text-center font-medium mb-1">Try voice input</p>
-              <p className="text-sm text-muted-foreground text-center mb-3">
-                Say something like “I bought 2 packs of toilet paper”
-              </p>
-
-              {[
-                'I bought 2 packs of toilet paper',
-                'We need milk and eggs',
-                'Added cat food',
-              ].map((example) => (
-                <button
-                  key={example}
-                  onClick={() => handleVoice(example)}
-                  disabled={isProcessing}
-                  className="w-full text-left px-4 py-3 rounded-xl bg-secondary/50 text-sm hover:bg-secondary transition-colors"
-                >
-                  “{example}”
-                </button>
-              ))}
-            </Card>
-
-            {voiceResult && (
-              <Card className="p-4">
-                <p className="text-sm text-muted-foreground mb-2">Heard: {voiceResult.transcript}</p>
-                {voiceResult.extracted ? (
-                  <div className="space-y-3">
-                    <div className="p-3 rounded-xl bg-secondary/50">
-                      <p className="font-medium">{voiceResult.extracted.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {voiceResult.extracted.quantity} {voiceResult.extracted.unit}
-                      </p>
+                      {manualItem.addToShoppingList && <Check className="w-4 h-4 text-white" />}
                     </div>
-                    <Button
-                      onClick={async () => {
-                        if (voiceResult.extracted?.action === 'add') {
-                          await createItem(currentHousehold.id, {
-                            name: voiceResult.extracted.name,
-                            quantity: voiceResult.extracted.quantity,
-                            unit: voiceResult.extracted.unit as any,
-                          });
-                        } else if (voiceResult.extracted?.action === 'remove') {
-                          await createShoppingItem(currentHousehold.id, {
-                            name: voiceResult.extracted.name,
-                            quantity: voiceResult.extracted.quantity,
-                            unit: voiceResult.extracted.unit as any,
-                          });
-                        }
-                        navigate('/');
-                      }}
-                      className="w-full rounded-full"
-                    >
-                      Confirm &amp; Add
+                    Also add to shopping list
+                  </label>
+                </CardContent>
+              </Card>
+
+              <Button onClick={handleManualAdd} className="w-full rounded-full h-14 text-lg">
+                <Plus className="w-5 h-5 mr-2" /> Add to Inventory
+              </Button>
+            </motion.div>
+          )}
+
+          {mode === 'receipt' && (
+            <motion.div
+              key="receipt"
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <Card className="overflow-hidden">
+                <CardContent className="p-8 text-center">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleReceiptUpload(e.target.files[0])}
+                  />
+                  <div className="w-20 h-20 rounded-3xl bg-violet-100 flex items-center justify-center mx-auto mb-5">
+                    <Camera className="w-10 h-10 text-violet-600" />
+                  </div>
+                  <p className="font-bold text-xl mb-1">Scan a receipt</p>
+                  <p className="text-base text-muted-foreground mb-6">Take a photo and we’ll extract the items automatically.</p>
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessing}
+                    className="rounded-full h-12 px-6"
+                  >
+                    {isProcessing ? 'Scanning...' : 'Upload Receipt'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {parsedReceiptItems.length > 0 && (
+                <Card className="overflow-hidden">
+                  <div className="p-5 border-b border-border/40 flex items-center justify-between">
+                    <p className="font-bold text-base">Found {parsedReceiptItems.length} items</p>
+                    <Button size="sm" onClick={importReceiptItems} className="rounded-full">
+                      Import {selectedItems.size}
                     </Button>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Couldn’t extract item details. Try again.</p>
-                )}
-              </Card>
-            )}
-          </div>
-        )}
+                  <CardContent className="p-0">
+                    <div className="divide-y divide-border/40">
+                      {parsedReceiptItems.map((item, i) => (
+                        <button
+                          key={i}
+                          onClick={() => toggleItem(i)}
+                          className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-colors ${
+                            selectedItems.has(i) ? 'bg-primary/5' : ''
+                          }`}
+                        >
+                          <div className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            selectedItems.has(i) ? 'bg-primary border-primary' : 'border-border'
+                          }`}>
+                            {selectedItems.has(i) && <Check className="w-4 h-4 text-white" />}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-base">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </motion.div>
+          )}
 
-        {mode === 'shopping' && (
-          <div className="space-y-4 animate-fade-in-up">
-            <Card className="p-4 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Item name</label>
-                <Input placeholder="e.g. Milk" value={manualItem.name} onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Quantity</label>
-                  <Input type="number" min={1} value={manualItem.quantity} onChange={(e) => setManualItem({ ...manualItem, quantity: Number(e.target.value) })} />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Unit</label>
-                  <select
-                    value={manualItem.unit}
-                    onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value as any })}
-                    className="w-full h-12 rounded-xl border border-input bg-background px-3 text-sm"
-                  >
-                    {Object.entries(UNIT_LABELS).map(([key, label]) => (
-                      <option key={key} value={key}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+          {mode === 'barcode' && (
+            <motion.div
+              key="barcode"
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <Card className="overflow-hidden">
+                <CardContent className="p-6 text-center space-y-4">
+                  <div className="w-20 h-20 rounded-3xl bg-amber-100 flex items-center justify-center mx-auto">
+                    <ScanBarcode className="w-10 h-10 text-amber-600" />
+                  </div>
+                  <p className="font-bold text-xl mb-1">Scan or type a barcode</p>
+                  <Input
+                    placeholder="Enter barcode number"
+                    value={barcode}
+                    onChange={(e) => setBarcode(e.target.value)}
+                    className="h-14 rounded-2xl text-base"
+                  />
+                  <Button onClick={handleBarcode} disabled={isProcessing} className="w-full rounded-full h-12">
+                    {isProcessing ? 'Looking up...' : 'Look Up Product'}
+                  </Button>
+
+                  {barcodeProduct && (
+                    <div className="mt-4 p-5 rounded-3xl bg-secondary/50 space-y-3 text-left">
+                      <p className="font-bold text-lg">{barcodeProduct.name}</p>
+                      {barcodeProduct.brand && <p className="text-base text-muted-foreground">{barcodeProduct.brand}</p>}
+                      <Button
+                        onClick={async () => {
+                          await createItem(currentHousehold.id, {
+                            name: barcodeProduct.name,
+                            brand: barcodeProduct.brand,
+                            category: barcodeProduct.category || 'OTHER',
+                            unit: barcodeProduct.unit || 'PIECE',
+                            quantity: 1,
+                          });
+                          navigate('/');
+                        }}
+                        className="w-full rounded-full h-12"
+                      >
+                        Add to Inventory
+                      </Button>
+                    </div>
+                  )}
+
+                  {barcodeProduct === null && barcode && !isProcessing && (
+                    <p className="text-base text-muted-foreground text-center">Product not found. Try adding it manually.</p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {mode === 'voice' && (
+            <motion.div
+              key="voice"
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <Card className="overflow-hidden">
+                <CardContent className="p-6 text-center">
+                  <div className="w-20 h-20 rounded-3xl bg-rose-100 flex items-center justify-center mx-auto mb-5">
+                    <Mic className="w-10 h-10 text-rose-600" />
+                  </div>
+                  <p className="font-bold text-xl mb-1">Try voice input</p>
+                  <p className="text-base text-muted-foreground mb-5">Say something like “I bought 2 packs of toilet paper”</p>
+
+                  {[
+                    'I bought 2 packs of toilet paper',
+                    'We need milk and eggs',
+                    'Added cat food',
+                  ].map((example) => (
+                    <button
+                      key={example}
+                      onClick={() => handleVoice(example)}
+                      disabled={isProcessing}
+                      className="w-full text-left px-5 py-4 rounded-2xl bg-secondary/50 text-base hover:bg-secondary transition-colors mb-2"
+                    >
+                      “{example}”
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {voiceResult && (
+                <Card className="overflow-hidden">
+                  <CardContent className="p-5 space-y-3">
+                    <p className="text-base text-muted-foreground mb-2">Heard: {voiceResult.transcript}</p>
+                    {voiceResult.extracted ? (
+                      <>
+                        <div className="p-4 rounded-2xl bg-secondary/50">
+                          <p className="font-bold text-lg">{voiceResult.extracted.name}</p>
+                          <p className="text-base text-muted-foreground">
+                            {voiceResult.extracted.quantity} {voiceResult.extracted.unit}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={async () => {
+                            if (voiceResult.extracted?.action === 'add') {
+                              await createItem(currentHousehold.id, {
+                                name: voiceResult.extracted.name,
+                                quantity: voiceResult.extracted.quantity,
+                                unit: voiceResult.extracted.unit as any,
+                              });
+                            } else if (voiceResult.extracted?.action === 'remove') {
+                              await createShoppingItem(currentHousehold.id, {
+                                name: voiceResult.extracted.name,
+                                quantity: voiceResult.extracted.quantity,
+                                unit: voiceResult.extracted.unit as any,
+                              });
+                            }
+                            navigate('/');
+                          }}
+                          className="w-full rounded-full h-12"
+                        >
+                          Confirm &amp; Add
+                        </Button>
+                      </>
+                    ) : (
+                      <p className="text-base text-muted-foreground">Couldn’t extract item details. Try again.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </motion.div>
+          )}
+
+          {mode === 'shopping' && (
+            <motion.div
+              key="shopping"
+              variants={itemVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-4"
+            >
+              <Card className="overflow-hidden">
+                <CardContent className="p-5 space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-base font-semibold">Item name</label>
+                    <Input
+                      placeholder="e.g. Milk"
+                      value={manualItem.name}
+                      onChange={(e) => setManualItem({ ...manualItem, name: e.target.value })}
+                      className="h-14 rounded-2xl text-base"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Quantity</label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={manualItem.quantity}
+                        onChange={(e) => setManualItem({ ...manualItem, quantity: Number(e.target.value) })}
+                        className="h-14 rounded-2xl text-base"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-base font-semibold">Unit</label>
+                      <select
+                        value={manualItem.unit}
+                        onChange={(e) => setManualItem({ ...manualItem, unit: e.target.value as any })}
+                        className="w-full h-14 rounded-2xl border border-input bg-background px-4 text-base focus:outline-none focus:ring-2 focus:ring-ring appearance-none"
+                      >
+                        {Object.entries(UNIT_LABELS).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
               <Button
                 onClick={async () => {
                   if (!manualItem.name) return;
@@ -459,40 +592,35 @@ export default function AddItemPage() {
                   });
                   navigate('/shopping');
                 }}
-                className="w-full rounded-full"
+                className="w-full rounded-full h-14 text-lg"
               >
-                Add to Shopping List
+                <ShoppingCart className="w-5 h-5 mr-2" /> Add to Shopping List
               </Button>
-            </Card>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <motion.div variants={itemVariants} className="pt-6">
+          <Card className="gradient-green text-white border-0 shadow-glow">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-lg">Not sure what to add?</p>
+                  <p className="text-white/80 text-sm">Ask HomeStock what’s running low.</p>
+                </div>
+                <Button variant="outline" className="rounded-full border-white/40 text-white hover:bg-white/20 bg-transparent" onClick={() => navigate('/ai-chat')}>
+                  Ask AI
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function ModeButton({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: typeof Camera;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors active:scale-95 ${
-        active
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-secondary text-secondary-foreground hover:bg-secondary/70'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      {label}
-    </button>
-  );
-}
+

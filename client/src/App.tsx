@@ -13,6 +13,9 @@ import NewHouseholdPage from '@/pages/new-household';
 import NewNotificationsPage from '@/pages/new-notifications';
 import NewAIChatPage from '@/pages/new-ai-chat';
 import AddItemPage from '@/pages/add-item';
+import MealIdeasPage from '@/pages/meal-ideas';
+import CalendarPage from '@/pages/calendar';
+import AnalyticsPage from '@/pages/analytics';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -61,6 +64,9 @@ function App() {
             <Route path="notifications" element={<NewNotificationsPage />} />
             <Route path="ai-chat" element={<NewAIChatPage />} />
             <Route path="add" element={<AddItemPage />} />
+            <Route path="meal-ideas" element={<MealIdeasPage />} />
+            <Route path="calendar" element={<CalendarPage />} />
+            <Route path="analytics" element={<AnalyticsPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
